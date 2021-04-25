@@ -16,7 +16,6 @@ from scripts.fsmedia import Alignments, PostProcess, finalize
 from lib.serializer import get_serializer
 from lib.convert import Converter
 from lib.align import AlignedFace, DetectedFace, update_legacy_png_header
-from lib.gpu_stats import GPUStats
 from lib.image import read_image_meta_batch, ImagesLoader
 from lib.multithreading import MultiThread, total_cpus
 from lib.queue_manager import queue_manager
@@ -803,13 +802,8 @@ class Predict():
         int
             The batch size that the model is to be fed at.
         """
-        logger.debug("Getting batchsize")
-        is_cpu = GPUStats().device_count == 0
-        batchsize = 1 if is_cpu else self._model.config["convert_batchsize"]
-        batchsize = min(queue_size, batchsize)
-        logger.debug("Batchsize: %s", batchsize)
-        logger.debug("Got batchsize: %s", batchsize)
-        return batchsize
+
+        return 1
 
     def _get_model_name(self, model_dir):
         """ Return the name of the Faceswap model used.
