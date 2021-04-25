@@ -78,6 +78,7 @@ class Insert():  # pylint:disable=too-few-public-methods
             self._faces[face_name] = (filename, image, detected_faces)
 
         print('Faces:', len(self._faces))
+        print(self._faces.keys())
         print()
 
         self._patch_threads = None
@@ -903,10 +904,12 @@ class Predict():
                               for feed_face in item["feed_faces"]]
 
                 if faces_seen != 0:
-                    face_name = os.path.basename(item["filename"])
+                    face_name = os.path.basename(item["filename"]).replace('.', '_0.')
                     if face_name in self._faces:
                         target_face = self._faces[face_name]
+                        print('Face found:', face_name)
                     else:
+                        print('Face NOT found:', face_name)
                         target_face = self._faces[list(self._faces.keys())[-1]]
 
                     feed_faces = self._compile_feed_faces(feed_batch, target_face)
