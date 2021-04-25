@@ -846,7 +846,8 @@ class ImageIO():
         self._location = path
         self._check_location_exists()
 
-        self._queue = queue_manager.get_queue(name=self.__class__.__name__, maxsize=queue_size)
+        queue_name = f'{self.__class__.__name__}-{path}'
+        self._queue = queue_manager.get_queue(name=queue_name, maxsize=queue_size)
         self._thread = None
 
     @property

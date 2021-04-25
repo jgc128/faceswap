@@ -1135,3 +1135,260 @@ class GuiArgs(FaceSwapArgs):
             default=False,
             help=_("Output to Shell console instead of GUI console")))
         return argument_list
+
+
+class InsertArgs(ExtractConvertArgs):
+    """ Creates the command line arguments for conversion.
+
+    This class inherits base options from :class:`ExtractConvertArgs` where arguments that are used
+    for both Extract and Convert should be placed.
+
+    Commands explicit to Convert should be added in :func:`get_optional_arguments`
+    """
+
+    @staticmethod
+    def get_info():
+        """ The information text for the Convert command.
+
+        Returns
+        -------
+        str
+            The information text for the Convert command.
+        """
+        return _("Swap the original faces in a source video/images using pre-defined faces.\n"
+                 "Conversion plugins can be configured in the 'Settings' Menu")
+
+    @staticmethod
+    def get_optional_arguments():
+        """ Returns the argument list unique to the Convert command.
+
+        Returns
+        -------
+        list
+            The list of optional command line options for the Convert command
+        """
+
+        argument_list = []
+        argument_list.append(dict(
+            opts=("-ref", "--reference-video"),
+            action=FileFullPaths,
+            filetypes="video",
+            type=str,
+            dest="reference_video",
+            group=_("Data"),
+            help=_("Only required if converting from images to video. Provide The original video "
+                   "that the source frames were extracted from (for extracting the fps and "
+                   "audio).")))
+        argument_list.append(dict(
+            opts=("-fd", "--faces-dir"),
+            action=DirFullPaths,
+            dest="faces_dir",
+            required=True,
+            group=_("Data"),
+            help=_("Faces directory. The directory containing the pre-defined faces")))
+        argument_list.append(dict(
+            opts=("-fad", "--faces-align-dir"),
+            action=DirFullPaths,
+            dest="faces_align_dir",
+            required=True,
+            group=_("Data"),
+            help=_("Faces alignment directory.")))
+        argument_list.append(dict(
+            opts=("-c", "--color-adjustment"),
+            action=Radio,
+            type=str.lower,
+            dest="color_adjustment",
+            default="avg-color",
+            choices=PluginLoader.get_available_convert_plugins("color", True),
+            group=_("Plugins"),
+            help=_("R|Performs color adjustment to the swapped face. Some of these options have "
+                   "configurable settings in '/config/convert.ini' or 'Settings > Configure "
+                   "Convert Plugins':"
+                   "\nL|avg-color: Adjust the mean of each color channel in the swapped "
+                   "reconstruction to equal the mean of the masked area in the original image."
+                   "\nL|color-transfer: Transfers the color distribution from the source to the "
+                   "target image using the mean and standard deviations of the L*a*b* "
+                   "color space."
+                   "\nL|manual-balance: Manually adjust the balance of the image in a variety of "
+                   "color spaces. Best used with the Preview tool to set correct values."
+                   "\nL|match-hist: Adjust the histogram of each color channel in the swapped "
+                   "reconstruction to equal the histogram of the masked area in the original "
+                   "image."
+                   "\nL|seamless-clone: Use cv2's seamless clone function to remove extreme "
+                   "gradients at the mask seam by smoothing colors. Generally does not give "
+                   "very satisfactory results."
+                   "\nL|none: Don't perform color adjustment.")))
+        argument_list.append(dict(
+            opts=("-M", "--mask-type"),
+            action=Radio,
+            type=str.lower,
+            dest="mask_type",
+            default="extended",
+            choices=PluginLoader.get_available_extractors("mask", add_none=True) + ["predicted"],
+            group=_("Plugins"),
+            help=_("R|Masker to use. NB: The mask you require must exist within the alignments "
+                   "file. You can add additional masks with the Mask Tool."
+                   "\nL|none: Don't use a mask."
+                   "\nL|components: Mask designed to provide facial segmentation based on the "
+                   "positioning of landmark locations. A convex hull is constructed around the "
+                   "exterior of the landmarks to create a mask."
+                   "\nL|extended: Mask designed to provide facial segmentation based on the "
+                   "positioning of landmark locations. A convex hull is constructed around the "
+                   "exterior of the landmarks and the mask is extended upwards onto the forehead."
+                   "\nL|vgg-clear: Mask designed to provide smart segmentation of mostly frontal "
+                   "faces clear of obstructions. Profile faces and obstructions may result in "
+                   "sub-par performance."
+                   "\nL|vgg-obstructed: Mask designed to provide smart segmentation of mostly "
+                   "frontal faces. The mask model has been specifically trained to recognize "
+                   "some facial obstructions (hands and eyeglasses). Profile faces may result in "
+                   "sub-par performance."
+                   "\nL|unet-dfl: Mask designed to provide smart segmentation of mostly frontal "
+                   "faces. The mask model has been trained by community members and will need "
+                   "testing for further description. Profile faces may result in sub-par "
+                   "performance."
+                   "\nL|predicted: If the 'Learn Mask' option was enabled during training, this "
+                   "will use the mask that was created by the trained model.")))
+        argument_list.append(dict(
+            opts=("-w", "--writer"),
+            action=Radio,
+            type=str,
+            default="opencv",
+            choices=PluginLoader.get_available_convert_plugins("writer", False),
+            group=_("Plugins"),
+            help=_("R|The plugin to use to output the converted images. The writers are "
+                   "configurable in '/config/convert.ini' or 'Settings > Configure Convert "
+                   "Plugins:'"
+                   "\nL|ffmpeg: [video] Writes out the convert straight to video. When the input "
+                   "is a series of images then the '-ref' (--reference-video) parameter must be "
+                   "set."
+                   "\nL|gif: [animated image] Create an animated gif."
+                   "\nL|opencv: [images] The fastest image writer, but less options and formats "
+                   "than other plugins."
+                   "\nL|pillow: [images] Slower than opencv, but has more options and supports "
+                   "more formats.")))
+        argument_list.append(dict(
+            opts=("-osc", "--output-scale"),
+            action=Slider,
+            min_max=(25, 400),
+            rounding=1,
+            type=int,
+            dest="output_scale",
+            default=100,
+            group=_("Frame Processing"),
+            help=_("Scale the final output frames by this amount. 100%% will output the frames "
+                   "at source dimensions. 50%% at half size 200%% at double size")))
+        argument_list.append(dict(
+            opts=("-fr", "--frame-ranges"),
+            type=str,
+            nargs="+",
+            group=_("Frame Processing"),
+            help=_("Frame ranges to apply transfer to e.g. For frames 10 to 50 and 90 to 100 use "
+                   "--frame-ranges 10-50 90-100. Frames falling outside of the selected range "
+                   "will be discarded unless '-k' (--keep-unchanged) is selected. NB: If you are "
+                   "converting from images, then the filenames must end with the frame-number!")))
+        argument_list.append(dict(
+            opts=("-a", "--input-aligned-dir"),
+            action=DirFullPaths,
+            dest="input_aligned_dir",
+            default=None,
+            group=_("Face Processing"),
+            help=_("If you have not cleansed your alignments file, then you can filter out faces "
+                   "by defining a folder here that contains the faces extracted from your input "
+                   "files/video. If this folder is defined, then only faces that exist within "
+                   "your alignments file and also exist within the specified folder will be "
+                   "converted. Leaving this blank will convert all faces that exist within the "
+                   "alignments file.")))
+        argument_list.append(dict(
+            opts=("-n", "--nfilter"),
+            action=FilesFullPaths,
+            filetypes="image",
+            dest="nfilter",
+            default=None,
+            nargs="+",
+            group=_("Face Processing"),
+            help=_("Optionally filter out people who you do not wish to process by passing in an "
+                   "image of that person. Should be a front portrait with a single person in the "
+                   "image. Multiple images can be added space separated. NB: Using face filter "
+                   "will significantly decrease extraction speed and its accuracy cannot be "
+                   "guaranteed.")))
+        argument_list.append(dict(
+            opts=("-f", "--filter"),
+            action=FilesFullPaths,
+            filetypes="image",
+            dest="filter",
+            default=None,
+            nargs="+",
+            group=_("Face Processing"),
+            help=_("Optionally select people you wish to process by passing in an image of that "
+                   "person. Should be a front portrait with a single person in the image. "
+                   "Multiple images can be added space separated. NB: Using face filter will "
+                   "significantly decrease extraction speed and its accuracy cannot be "
+                   "guaranteed.")))
+        argument_list.append(dict(
+            opts=("-l", "--ref_threshold"),
+            action=Slider,
+            min_max=(0.01, 0.99),
+            rounding=2,
+            type=float,
+            dest="ref_threshold",
+            default=0.4,
+            group=_("Face Processing"),
+            help=_("For use with the optional nfilter/filter files. Threshold for positive face "
+                   "recognition. Lower values are stricter. NB: Using face filter will "
+                   "significantly decrease extraction speed and its accuracy cannot be "
+                   "guaranteed.")))
+        argument_list.append(dict(
+            opts=("-j", "--jobs"),
+            action=Slider,
+            min_max=(0, 40),
+            rounding=1,
+            type=int,
+            dest="jobs",
+            default=0,
+            group=_("settings"),
+            help=_("The maximum number of parallel processes for performing conversion. "
+                   "Converting images is system RAM heavy so it is possible to run out of memory "
+                   "if you have a lot of processes and not enough RAM to accommodate them all. "
+                   "Setting this to 0 will use the maximum available. No matter what you set "
+                   "this to, it will never attempt to use more processes than are available on "
+                   "your system. If singleprocess is enabled this setting will be ignored.")))
+        argument_list.append(dict(
+            opts=("-t", "--trainer"),
+            type=str.lower,
+            choices=PluginLoader.get_available_models(),
+            group=_("settings"),
+            help=_("[LEGACY] This only needs to be selected if a legacy model is being loaded or "
+                   "if there are multiple models in the model folder")))
+        argument_list.append(dict(
+            opts=("-otf", "--on-the-fly"),
+            action="store_true",
+            dest="on_the_fly",
+            default=False,
+            group=_("settings"),
+            help=_("Enable On-The-Fly Conversion. NOT recommended. You should generate a clean "
+                   "alignments file for your destination video. However, if you wish you can "
+                   "generate the alignments on-the-fly by enabling this option. This will use "
+                   "an inferior extraction pipeline and will lead to substandard results. If an "
+                   "alignments file is found, this option will be ignored.")))
+        argument_list.append(dict(
+            opts=("-k", "--keep-unchanged"),
+            action="store_true",
+            dest="keep_unchanged",
+            default=False,
+            group=_("Frame Processing"),
+            help=_("When used with --frame-ranges outputs the unchanged frames that are not "
+                   "processed instead of discarding them.")))
+        argument_list.append(dict(
+            opts=("-s", "--swap-model"),
+            action="store_true",
+            dest="swap_model",
+            default=False,
+            group=_("settings"),
+            help=_("Swap the model. Instead converting from of A -> B, converts B -> A")))
+        argument_list.append(dict(
+            opts=("-sp", "--singleprocess"),
+            action="store_true",
+            default=False,
+            group=_("settings"),
+            help=_("Disable multiprocessing. Slower but less resource intensive.")))
+        return argument_list
